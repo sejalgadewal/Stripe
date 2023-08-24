@@ -1,0 +1,89 @@
+<%
+=begin%>
+ <!-- app/views/payments/new.html.erb -->
+
+<button id="pay-button">Pay</button>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+  var stripe = Stripe("<%= Rails.configuration.stripe[:publishable_key] %>");
+
+  var payButton = document.getElementById("pay-button");
+
+  payButton.addEventListener("click", function() {
+    fetch("/payments", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": "<%= form_authenticity_token %>"
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      stripe.confirmCardPayment(data.client_secret, {
+        payment_method: {
+          card: card, // Your Stripe card element
+          // Add additional details if needed (billing details, etc.)
+        }
+      })
+      .then(function(result) {
+        if (result.error) {
+          // Display error to user
+        } else {
+          // Payment succeeded, handle success
+        }
+      });
+    });
+  });
+</script> 
+<%
+=end%>
+
+<!-- app/views/payments/new.html.erb -->
+
+<%= form_tag payments_path, id: 'payment-form' do %>
+  <div class="form-row">
+    <label for="card-element">Credit or debit card</label>
+    <div id="card-element">
+    </div>
+    
+    <div id="card-errors" role="alert"></div>
+  </div>
+
+  <button id="submit">Pay</button>
+<% end %>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+  var stripe = Stripe("<%= Rails.configuration.stripe[:publishable_key] %>");
+  var elements = stripe.elements();
+
+  var card = elements.create("card");
+  card.mount("#card-element");
+
+  var form = document.getElementById("payment-form");
+  form.addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    stripe.createToken(card).then(function(result) {
+      if (result.error) {
+        var errorElement = document.getElementById("card-errors");
+        errorElement.textContent = result.error.message;
+      } else {
+        // Send the token to your server
+        stripeTokenHandler(result.token);
+      }
+    });
+  });
+
+  function stripeTokenHandler(token) {
+    var form = document.getElementById("payment-form");
+    var hiddenInput = document.createElement("input");
+    hiddenInput.setAttribute("type", "hidden");
+    hiddenInput.setAttribute("name", "stripeToken");
+    hiddenInput.setAttribute("value", token.id);
+    form.appendChild(hiddenInput);
+
+    form.submit();
+  }
+</script>
